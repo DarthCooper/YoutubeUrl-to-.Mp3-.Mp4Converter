@@ -40,13 +40,15 @@ def hello():
     if path.strip() == "":
             path = get_download_path()
     try:
-        audio(url, path)
+        download = audio(url, path)
+        if(not download):
+            return render_template('error.html')
     except PytubeFixError:
         return render_template('error.html')
 
     return render_template('hello.html', name = path)
 
-def audio(thelink, path):
+def audio(thelink, path) -> bool:
     try:
         yt = YouTube(thelink, on_progress_callback=on_progress)
         print('Title:', yt.title)
@@ -58,8 +60,12 @@ def audio(thelink, path):
         os.rename(out_file, new_file)
         if new_file.exists():
             print(f'{yt.title} has been successfully downloaded.')
+            return True
+        else:
+            return False
     except Exception as e:
         print(f'ERROR: {yt.title}could not be downloaded! \n Error: {e}')
+        return False
 
 def get_download_path():
     """Returns the default downloads path for linux or windows"""
