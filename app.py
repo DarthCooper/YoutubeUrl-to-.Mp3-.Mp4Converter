@@ -3,6 +3,8 @@ from pytubefix import YouTube
 from pytubefix.cli import on_progress
 from io import BytesIO
 from pytubefix.exceptions import PytubeFixError
+from pathlib import Path
+
 from flask import (
     Flask,
     redirect,
@@ -34,22 +36,28 @@ def favicon():
 @app.route("/hello", methods=["POST"])
 def hello():
     url = request.form.get("name")
+    path = request.form.get("path")
     try:
-        yt = YouTube(url, on_progress_callback=on_progress)
-        buffer = BytesIO()
-        audio = yt.streams.filter(only_audio=True).order_by("abr").desc().first()
-        audio.stream_to_buffer(buffer)
-        buffer.seek(0)
+        audio(url, path)
     except PytubeFixError:
         print("error")
 
-    return send_file(
-        buffer,
-        as_attachment = True,
-        download_name = f"{audio.title}.mp3",
-        mimetype = "audio/mp3",
-    )
+    return render_template('hello.html', name = path)
 
+def audio(thelink, path):
+    try:
+        yt = YouTube(thelink)
+        print('Title:', yt.title)
+        print('Views:', yt.views)
+        video = yt.streams.filter(abr='160kbps', only_audio=True).last()
+        out_file = video.download(output_path=path)
+        base, ext = os.path.splitext(out_file)
+        new_file = Path(f'{base}.mp3')
+        os.rename(out_file, new_file)
+        if new_file.exists():
+            print(f'{yt.title} has been successfully downloaded.')
+    except Exception as e:
+        print(f'ERROR: {yt.title}could not be downloaded! \n Error: {e}')
 
 if __name__ == "__main__":
     app.run()
