@@ -37,20 +37,22 @@ def favicon():
 def hello():
     url = request.form.get("name")
     path = request.form.get("path")
+    if path.strip() == "":
+            path = get_download_path()
     try:
         audio(url, path)
     except PytubeFixError:
-        print("error")
+        return render_template('error.html')
 
     return render_template('hello.html', name = path)
 
 def audio(thelink, path):
     try:
-        yt = YouTube(thelink)
+        yt = YouTube(thelink, on_progress_callback=on_progress)
         print('Title:', yt.title)
         print('Views:', yt.views)
-        video = yt.streams.filter(abr='160kbps', only_audio=True).last()
-        out_file = video.download(output_path=path)
+        video = yt.streams.get_audio_only()
+        out_file = video.download(output_path=path, mp3 = True)
         base, ext = os.path.splitext(out_file)
         new_file = Path(f'{base}.mp3')
         os.rename(out_file, new_file)
@@ -58,6 +60,18 @@ def audio(thelink, path):
             print(f'{yt.title} has been successfully downloaded.')
     except Exception as e:
         print(f'ERROR: {yt.title}could not be downloaded! \n Error: {e}')
+
+def get_download_path():
+    """Returns the default downloads path for linux or windows"""
+    if os.name == 'nt':
+        import winreg
+        sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
+        downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
+            location = winreg.QueryValueEx(key, downloads_guid)[0]
+        return location
+    else:
+        return os.path.join(os.path.expanduser('~'), 'downloads')
 
 if __name__ == "__main__":
     app.run()
